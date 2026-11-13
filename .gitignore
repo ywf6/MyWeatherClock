@@ -1,0 +1,16 @@
+# Local credentials and IDE settings
+.env
+.env.*
+/.vscode/
+
+# Generated firmware and native builds
+/firmware/
+/ota/build/
+/page-flow-build/
+/voice-link/qt-native/build-auto/
+/voice-link/voice-assets/wake-runtime/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.venv/
