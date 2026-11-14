@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 $out = Join-Path $PSScriptRoot 'build'
-$device = Join-Path $root 'upstream/firmware/cmsis/device'
-$cmsis = Join-Path $root 'upstream/firmware/cmsis'
+$device = Join-Path $root 'firmware/cmsis/device'
+$cmsis = Join-Path $root 'firmware/cmsis'
 $tools = if ($env:ARMCC_BIN) { $env:ARMCC_BIN } else { 'D:/Develop/Keil/core/ARM/ARMCC/bin' }
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 

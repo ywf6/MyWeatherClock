@@ -12,7 +12,7 @@
 #include "page_flow.h"
 #include "host_console.h"
 #ifdef WC_OTA_APP
-#include "../../../ota/layout.h"
+#include "../../ota/layout.h"
 #include "stm32f4xx.h"
 #endif
 

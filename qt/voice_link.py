@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from time import monotonic, sleep
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "host-console"))
 from ai_text import render_chat
 from protocol import parse_frame

@@ -9,7 +9,7 @@ import sys
 import zlib
 
 BASE = 0x08000000
-LAYOUT = Path(__file__).with_name("layout.h").read_text()
+LAYOUT = Path(__file__).with_name("layout.h").read_text(encoding="utf-8")
 APP = int(re.search(r"#define WC_APP_BASE\s+(0x\w+)u", LAYOUT)[1], 16)
 LIMIT = int(re.search(r"#define WC_APP_LIMIT\s+(0x\w+)u", LAYOUT)[1], 16)
 RECORD = int(re.search(r"#define WC_APP_RECORD\s+(0x\w+)u", LAYOUT)[1], 16)

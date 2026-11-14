@@ -1,6 +1,6 @@
 param([string]$OutputDirectory = 'page-flow-build', [switch]$Ota)
 $ErrorActionPreference = 'Stop'
-$root = Join-Path $PSScriptRoot 'upstream'
+$root = $PSScriptRoot
 $mdk = Join-Path $root 'mdk'
 $out = Join-Path $PSScriptRoot $OutputDirectory
 $bin = if ($env:ARMCC_BIN) { $env:ARMCC_BIN } else { 'D:\Develop\Keil\core\ARM\ARMCC\bin' }

@@ -5,10 +5,11 @@
 
 # Generated firmware and native builds
 /firmware/
-/ota/build/
-/page-flow-build/
-/voice-link/qt-native/build-auto/
-/voice-link/voice-assets/wake-runtime/
+/stm32/ota/build/
+/stm32/page-flow-build/
+/esp32/build/
+/qt/native/build-auto/
+/qt/voice-assets/wake-runtime/
 
 # Python caches
 __pycache__/
