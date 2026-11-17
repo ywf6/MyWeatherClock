@@ -15,7 +15,7 @@ public:
     DeviceWorker *worker = nullptr;
     bool online = false, working = false, isListening = false, closing = false;
     bool pendingConnect = false;
-    bool bootMode = false, canUpgrade = false, upgrading = false;
+    bool bootMode = false, canUpgrade = false, upgrading = false, xiaozhiMode = false;
     DeviceDiscovery *discovery = new DeviceDiscovery(this);
     QPushButton *findDevice = new QPushButton("查找设备");
     QComboBox *mode = new QComboBox, *serial = new QComboBox;
@@ -142,11 +142,12 @@ public:
         for (QWidget *w : QList<QWidget *>{mode, voiceDir, browse, python}) w->setEnabled(!active);
         serial->setEnabled(!active && !wifi); refresh->setEnabled(!active && !wifi); host->setEnabled(!active && wifi); port->setEnabled(!active && wifi);
         findDevice->setEnabled(!active && wifi);
-        for (QWidget *w : QList<QWidget *>{question, send, record, home, probe}) w->setEnabled(idle && !bootMode);
+        for (QWidget *w : QList<QWidget *>{question, send, record, probe}) w->setEnabled(idle && !bootMode && !xiaozhiMode);
+        home->setEnabled(idle && !bootMode);
         upgrade->setEnabled(idle && wifi && canUpgrade);
         connectButton->setEnabled(!upgrading);
-        for (QWidget *w : QList<QWidget *>{hotspot, password, joinWifi}) w->setEnabled(idle && !wifi);
-        listen->setEnabled((idle && !bootMode) || isListening); listen->setText(isListening ? "停止语音唤醒" : "开启语音唤醒"); connectButton->setText(active ? "断开连接" : "连接设备");
+        for (QWidget *w : QList<QWidget *>{hotspot, password, joinWifi}) w->setEnabled(idle && !wifi && !xiaozhiMode);
+        listen->setEnabled(!xiaozhiMode && ((idle && !bootMode) || isListening)); listen->setText(isListening ? "停止语音唤醒" : "开启语音唤醒"); connectButton->setText(active ? "断开连接" : "连接设备");
     }
     void connectDevice() {
         bool wifi = mode->currentIndex() == 1;
@@ -157,8 +158,8 @@ public:
         worker = new DeviceWorker(c); connection->setText("正在连接设备…");
         connect(worker, &DeviceWorker::connected, this, [this, wifi]{ online = true; connection->setText(wifi ? "已连接 · Wi-Fi / TCP" : "已连接 · USB 串口 460800"); controls(); });
         connect(worker, &DeviceWorker::message, this, [this](QString s){ appendLog(s); if (upgrading) upgradeStage->setText(s); });
-        connect(worker, &DeviceWorker::firmwareMode, this, [this](bool boot, bool supported){
-            bootMode = boot; canUpgrade = supported; controls();
+        connect(worker, &DeviceWorker::firmwareMode, this, [this](bool boot, bool supported, bool xiaozhi){
+            bootMode = boot; canUpgrade = supported; xiaozhiMode = xiaozhi; controls();
         });
         connect(worker, &DeviceWorker::upgradeProgress, this, [this](int progress, const QString &stage){
             upgradeProgress->setValue(progress); upgradeStage->setText(stage);
@@ -180,7 +181,7 @@ public:
             image.setColorTable({qRgb(0,0,0), qRgb(255,255,255)}); preview->setPixmap(QPixmap::fromImage(image.copy()));
         });
         connect(worker, &QThread::finished, this, [this]{ worker->deleteLater(); worker = nullptr;
-            online = working = isListening = bootMode = canUpgrade = upgrading = false;
+            online = working = isListening = bootMode = canUpgrade = upgrading = xiaozhiMode = false;
             connection->setText("未连接 · 可重新选择连接方式"); connectButton->setEnabled(true); controls(); if (closing) close();
             else if (mode->currentIndex() == 1) QTimer::singleShot(0, this, [this]{ startDiscovery(); }); });
         worker->start(); controls();

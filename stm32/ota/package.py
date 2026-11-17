@@ -60,7 +60,7 @@ def package(out):
     header = struct.pack("<III", MAGIC, len(app), zlib.crc32(app))
     (out / "weatherclock.wcota").write_bytes(header + app)
     write_hex(out / "weatherclock-first-install.hex",
-              [(BASE, boot), (RECORD, header), (APP, app)])
+              [(BASE, boot), (RECORD, header + struct.pack("<I", 0)), (APP, app)])
     print(f"Bootloader {len(boot)} bytes, application {len(app)} bytes, CRC32 {zlib.crc32(app):08x}")
 
 

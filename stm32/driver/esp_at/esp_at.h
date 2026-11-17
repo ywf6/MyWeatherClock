@@ -1,7 +1,7 @@
 /* [阅读说明]
  * 板载 ESP-AT 驱动头文件：声明 AT 命令接口和数据结构。
  * ESP-AT 模块通过 USART2（PA2=TX, PA3=RX, 115200）与 STM32 通信。
- * 发送使用 DMA1 Stream6，接收使用 RXNE 中断按行识别 OK/ERROR/ready。
+ * 发送使用 DMA1 Stream6，接收使用 RXNE 中断按行识别 AT 响应。
  * 支持 Wi-Fi 连接管理、SNTP 时间同步和 HTTP GET 请求。
  */
 #ifndef __ESP_AT_H__
@@ -32,13 +32,13 @@ typedef struct
     uint8_t weekday;    /* 星期（1=周一, 7=周日） */
 } esp_date_time_t;
 
-/* 初始化 AT 模块：发送 AT+RESTORE 恢复出厂，等待 ready */
+/* 初始化串口并探测 AT 模块，保留模块已保存的设置。 */
 bool esp_at_init(void);
 
 /* 设置 Wi-Fi 模式为 Station（AT+CWMODE=1） */
 bool esp_at_wifi_init(void);
 
-/* 连接指定 Wi-Fi 热点（AT+CWJAP），超时 5 秒 */
+/* 连接指定热点；ssid 和 pwd 均为 NULL 时使用模块已保存的热点。 */
 bool esp_at_connect_wifi(const char *ssid, const char *pwd, const char *mac);
 
 /* 查询 Wi-Fi 连接状态和详情（AT+CWSTATE? + AT+CWJAP?） */

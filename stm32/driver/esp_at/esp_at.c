@@ -24,7 +24,6 @@ typedef enum
     AT_ACK_OK,
     AT_ACK_ERROR,
     AT_ACK_BUSY,
-    AT_ACK_READY,
 } at_ack_t;
 
 typedef struct
@@ -38,7 +37,6 @@ static const at_ack_match_t at_ack_matches[] =
     {AT_ACK_OK, "OK\r\n"},
     {AT_ACK_ERROR, "ERROR\r\n"},
     {AT_ACK_BUSY, "busy p…\r\n"},
-    {AT_ACK_READY, "ready\r\n"},
 };
 
 static char *rxline;
@@ -49,7 +47,6 @@ static SemaphoreHandle_t at_ack_sempahore;
 
 static bool esp_at_write_command(const char *command, uint32_t timeout);
 static bool esp_at_wait_boot(uint32_t timeout);
-static bool esp_at_wait_ready(uint32_t timeout);
 
 static void esp_at_io_init(void)
 {
@@ -123,19 +120,14 @@ static void esp_at_lowlevel_init(void)
 
 bool esp_at_init(void)
 {
-    at_ack_sempahore = xSemaphoreCreateBinary();
-    configASSERT(at_ack_sempahore);
-    
-    esp_at_lowlevel_init();
-    
-    if (!esp_at_wait_boot(3000))
-        return false;
-    if (!esp_at_write_command("AT+RESTORE\r\n", 2000))
-        return false;
-    if (!esp_at_wait_ready(5000))
-        return false;
-    
-    return true;
+    if (!at_ack_sempahore) {
+        at_ack_sempahore = xSemaphoreCreateBinary();
+        configASSERT(at_ack_sempahore);
+        rxline = rxbuf;
+        esp_at_lowlevel_init();
+    }
+
+    return esp_at_wait_boot(3000);
 }
 
 /* [阅读说明]
@@ -175,11 +167,6 @@ static at_ack_t esp_at_usart_wait_receive(uint32_t timeout)
     return acked ? rxack : AT_ACK_NONE;
 }
 
-static bool esp_at_wait_ready(uint32_t timeout)
-{
-    return esp_at_usart_wait_receive(timeout) == AT_ACK_READY;
-}
-
 /* [阅读说明]
  * 发送命令并等待终结应答；超时期间任务阻塞，其他就绪任务可运行。
  * 现状提醒：DEBUG 会输出完整 AT 命令，配置 Wi-Fi/天气密钥后调试日志可能包含凭据。
@@ -187,14 +174,15 @@ static bool esp_at_wait_ready(uint32_t timeout)
 static bool esp_at_write_command(const char *command, uint32_t timeout)
 {
 #if ESP_AT_DEBUG
-    printf("[DEBUG] Send: %s\n", command);
+    const bool log_command = strncmp(command, "AT+CWJAP=", 9) != 0 && strncmp(command, "AT+HTTPCLIENT=", 14) != 0;
+    if (log_command) printf("[DEBUG] Send: %s\n", command);
 #endif
 
     esp_at_usart_write(command);
     at_ack_t ack = esp_at_usart_wait_receive(timeout);
 
 #if ESP_AT_DEBUG
-    printf("[DEBUG] Response:\n%s\n", rxbuf);
+    if (log_command) printf("[DEBUG] Response:\n%s\n", rxbuf);
 #endif
 
     return ack == AT_ACK_OK;
@@ -223,15 +211,20 @@ bool esp_at_wifi_init(void)
 
 bool esp_at_connect_wifi(const char *ssid, const char *pwd, const char *mac)
 {
+    if (ssid == NULL && pwd == NULL)
+        return esp_at_write_command("AT+CWJAP\r\n", 17000);
     if (ssid == NULL || pwd == NULL)
         return false;
-    
-    char *cmd = rxbuf;
-    int len = snprintf(cmd, sizeof(rxbuf), "AT+CWJAP=\"%s\",\"%s\"\r\n", ssid, pwd);
-    if (mac)
-        snprintf(cmd + len, sizeof(rxbuf) - len, ",\"%s\"", mac);
-    
-    return esp_at_write_command(cmd, 5000);
+
+    char cmd[256];
+    int len = mac
+        ? snprintf(cmd, sizeof(cmd), "AT+CWJAP=\"%s\",\"%s\",\"%s\"\r\n", ssid, pwd, mac)
+        : snprintf(cmd, sizeof(cmd), "AT+CWJAP=\"%s\",\"%s\"\r\n", ssid, pwd);
+    if (len < 0 || (size_t)len >= sizeof(cmd))
+        return false;
+
+    return esp_at_write_command("AT+SYSSTORE=1\r\n", 2000) &&
+           esp_at_write_command(cmd, 17000);
 }
 
 static bool parse_cwstate_response(const char *response, esp_wifi_info_t *info)
@@ -245,7 +238,7 @@ static bool parse_cwstate_response(const char *response, esp_wifi_info_t *info)
 		return false;
 	
 	int wifi_state;
-	if (sscanf(response, "+CWSTATE:%d,\"%63[^\"]", &wifi_state, info->ssid) != 2)
+	if (sscanf(response, "+CWSTATE:%d", &wifi_state) != 1)
 		return false;
 	
 	info->connected = (wifi_state == 2);
@@ -405,7 +398,7 @@ void USART2_IRQHandler(void)
                 if (ack != AT_ACK_NONE)
                 {
                     rxack = ack;
-                    BaseType_t pxHigherPriorityTaskWoken;
+                    BaseType_t pxHigherPriorityTaskWoken = pdFALSE;
                     xSemaphoreGiveFromISR(at_ack_sempahore, &pxHigherPriorityTaskWoken);
                     portYIELD_FROM_ISR(pxHigherPriorityTaskWoken);
                 }

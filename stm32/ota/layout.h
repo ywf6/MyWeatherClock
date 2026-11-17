@@ -14,6 +14,10 @@
  * 内部 Flash 0x0800c000 存放已安装应用的 magic、size、CRC32，安装时最后写入有效标记。
  */
 #define WC_APP_RECORD     0x0800c000u
+/* Spare word in the record sector: erased on each OTA install, programmed on K3.
+ * This word is outside both the 12-byte OTA header and the application CRC. */
+#define WC_NOTICE_ADDR    (WC_APP_RECORD + 12u)
+#define WC_NOTICE_READ    0u
 #define WC_OTA_MAGIC      0x31414357u
 #define WC_BOOT_COOKIE    0x57434231u
 /* [阅读说明]

@@ -374,12 +374,19 @@ void DeviceWorker::joinHotspot(const QString &configuration) {
  */
 void DeviceWorker::run() {
     try {
-        channel = std::make_unique<Channel>(config); channel->write("PING\n"); expect("VOICE1");
+        channel = std::make_unique<Channel>(config);
+        channel->write("PING\n");
+        const auto handshake = channel->line();
+        const bool xiaozhi = handshake == "VOICE_XIAOZHI1";
+        if (!xiaozhi && handshake != "VOICE1") fail("设备应答异常：" + QString::fromUtf8(handshake));
         auto caps = capabilities();
         bool boot = caps.contains("ota_boot");
         if (!boot && !caps.contains("voice_uart")) fail("STM32 固件不支持语音串口");
-        emit firmwareMode(boot, caps.contains("ota_app") || boot);
-        emit connected(); emit message(boot ? "STM32 处于升级模式" : "设备握手成功");
+        emit firmwareMode(boot, caps.contains("ota_app") || boot, xiaozhi);
+        emit connected();
+        if (xiaozhi) emit message("已连接小智固件。语音问答由板上 K2 发起。");
+        if (boot) emit message("STM32 处于升级模式");
+        else if (!xiaozhi) emit message("设备握手成功");
         QElapsedTimer poll; poll.start(); if (!boot) status();
         while (!stop) {
             QPair<QString, QString> task; { QMutexLocker lock(&mutex); if (!commands.isEmpty()) task = commands.dequeue(); }
@@ -388,9 +395,10 @@ void DeviceWorker::run() {
             if (task.first == "ota") {
                 upgrade(task.second);
                 boot = false;
-                emit firmwareMode(false, true);
+                emit firmwareMode(false, true, xiaozhi);
             }
             else if (task.first == "home") ack("HOME");
+            else if (xiaozhi) fail("此操作适用于原有 C3 语音固件，小智问答请使用板上 K2");
             else if (task.first == "join-wifi") joinHotspot(task.second);
             else if (task.first == "text") turn(task.second);
             else if (task.first == "record") turn();

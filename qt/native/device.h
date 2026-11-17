@@ -36,7 +36,7 @@ public:
     static QStringList serialPorts();
 signals:
     void connected();
-    void firmwareMode(bool boot, bool canUpgrade);
+    void firmwareMode(bool boot, bool canUpgrade, bool xiaozhi);
     void upgradeProgress(int percent, QString stage);
     void networkReady(QString address);
     void message(QString text);

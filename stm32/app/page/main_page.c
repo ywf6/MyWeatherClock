@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "rtc.h"
-#include "wifi.h"
 #include "ui.h"
 #include "app.h"
 #include "page.h"
@@ -26,7 +25,8 @@ void main_page_display(void)
         ui_fill_color(15, 15, 224, 154, color_bg_time);
         // wifiÍ¼±ê
         ui_draw_image(23, 20, &icon_wifi);
-        main_page_redraw_wifi_ssid(WIFI_SSID);
+        ui_write_string(50, 23, APP_VERSION, mkcolor(0, 0, 0), color_bg_time, &font16_maple);
+        main_page_redraw_wifi_ssid("Wi-Fi offline");
         ui_write_string(25, 42, "--:--", mkcolor(0, 0, 0), color_bg_time, &font76_maple_extrabold);
         ui_write_string(35, 121, "----/--/-- ÐÇÆÚËÄ", mkcolor(143, 143, 143), color_bg_time, &font20_maple_bold);
     } while (0);
@@ -52,9 +52,12 @@ void main_page_display(void)
 
 void main_page_redraw_wifi_ssid(const char *ssid)
 {
-    char str[21];
-    snprintf(str, sizeof(str), "%20s", ssid);
-    ui_write_string(50, 23, str, mkcolor(143, 143, 143), color_bg_time, &font16_maple);
+    char str[15];
+    snprintf(str, sizeof(str), "%14.14s", ssid);
+    for (char *ch = str; *ch; ++ch) {
+        if ((unsigned char)*ch < 0x20 || (unsigned char)*ch > 0x7E) *ch = '?';
+    }
+    ui_write_string(106, 23, str, mkcolor(143, 143, 143), color_bg_time, &font16_maple);
 }
 
 void main_page_redraw_time(rtc_date_time_t *time)
@@ -89,7 +92,7 @@ void main_page_redraw_inner_temperature(float temperature)
     
 void main_page_redraw_inner_humidity(float humidity)
 {
-    char str[3];
+    char str[3] = {'-', '-', 0};
     if (humidity > 0.0f && humidity <= 99.99f)
         snprintf(str, sizeof(str), "%2.0f", humidity);
     ui_write_string(25, 239, str, mkcolor(0, 0, 0), color_bg_inner, &font64_maple_extrabold);

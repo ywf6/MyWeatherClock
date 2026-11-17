@@ -3,6 +3,7 @@
  * 电脑侧 USB 460800；STM32 侧 Serial1=115200，GPIO0=TX、GPIO1=RX。
  * 局域网 TCP 8765 承载会话，UDP 8766 用于设备发现；完整 AI 调用和离线唤醒检测在电脑上。
  */
+#include <Arduino.h>
 #include <ESP_I2S.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>

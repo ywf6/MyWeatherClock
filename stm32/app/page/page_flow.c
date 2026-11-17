@@ -12,6 +12,11 @@
 #include "page.h"
 #include "page_flow.h"
 #include "ui.h"
+#include "app.h"
+#ifdef WC_OTA_APP
+#include "../../ota/update_notice.h"
+#include "update_notes_bitmap.h"
+#endif
 
 #define KEY_WAKE GPIO_Pin_4
 #define KEY_HOME GPIO_Pin_5
@@ -56,6 +61,8 @@ static home_data_t home;
 static unsigned dirty;
 static active_page_t active_page;
 static bool page_ready;
+/* An overlay on HOME keeps the protocol compatible with installed Qt clients. */
+static bool update_notice;
 static unsigned revision;
 static unsigned key2_count;
 static int pending_request;
@@ -103,7 +110,7 @@ int page_flow_request(int wake)
     int result;
     taskENTER_CRITICAL();
     result = !page_ready ? 0 :
-        (pending_request || (wake && active_page != PAGE_CLOCK)) ? -1 : 1;
+        (update_notice || pending_request || (wake && active_page != PAGE_CLOCK)) ? -1 : 1;
     if (result == 1) pending_request = wake ? 1 : 2;
     taskEXIT_CRITICAL();
     return result;
@@ -209,6 +216,58 @@ static void draw_home(bool full)
     }
 }
 
+/* Only OTA application builds inspect the persistent installation record. */
+static bool update_notice_pending(void)
+{
+#ifdef WC_OTA_APP
+    return wc_update_notice_pending((const volatile uint32_t *)WC_APP_RECORD);
+#else
+    return false;
+#endif
+}
+
+static bool dismiss_update_notice(void)
+{
+#ifdef WC_OTA_APP
+    FLASH_Status result;
+    uint32_t data_cache;
+    taskENTER_CRITICAL();
+    data_cache = FLASH->ACR & FLASH_ACR_DCEN;
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                    FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+    result = FLASH_ProgramWord(WC_NOTICE_ADDR, WC_NOTICE_READ);
+    FLASH_Lock();
+    /* Invalidate a possible cached copy of the erased read marker. */
+    FLASH_DataCacheCmd(DISABLE);
+    FLASH->ACR |= FLASH_ACR_DCRST;
+    FLASH->ACR &= ~FLASH_ACR_DCRST;
+    if (data_cache) FLASH_DataCacheCmd(ENABLE);
+    __DSB();
+    __ISB();
+    taskEXIT_CRITICAL();
+    return result == FLASH_COMPLETE &&
+           *(const volatile uint32_t *)WC_NOTICE_ADDR == WC_NOTICE_READ;
+#else
+    return true;
+#endif
+}
+
+static void draw_update_notice(void)
+{
+#ifdef WC_OTA_APP
+    const uint16_t background = mkcolor(12, 22, 32);
+    const uint16_t card = mkcolor(24, 48, 66);
+    ui_fill_color(0, 0, UI_WIDTH - 1, UI_HEIGHT - 1, background);
+    ui_fill_color(0, 0, UI_WIDTH - 1, 52, card);
+    ui_write_string(16, 10, "OTA UPDATED", 0xFFFF, card, &font16_maple);
+    ui_write_string(16, 30, APP_VERSION, mkcolor(120, 215, 246),
+                    card, &font16_maple);
+    ui_draw_chat_bitmap(update_notes_bitmap);
+    ui_write_string(16, 286, "K3: Back to clock", 0xFFFF, background, &font16_maple);
+#endif
+}
+
 static void draw_wake_face(void)
 {
     const uint16_t card = mkcolor(24, 48, 66);
@@ -284,8 +343,10 @@ static void page_task(void *parameter)
     /* A key held at startup must be released before it can trigger. */
     wake.stable = wake.raw;
     back.stable = back.raw;
-    draw_home(true);
-    publish_page(page, "BOOT");
+    update_notice = update_notice_pending();
+    if (update_notice) draw_update_notice();
+    else draw_home(true);
+    publish_page(page, update_notice ? "OTA" : "BOOT");
     for (;;) {
         now = xTaskGetTickCount();
         back_pressed = key_pressed(&back, KEY_HOME, now);
@@ -295,10 +356,24 @@ static void page_task(void *parameter)
         request = pending_request;
         pending_request = 0;
         taskEXIT_CRITICAL();
-        key2_event = wake_pressed && !back_pressed && request != 2 &&
+        key2_event = !update_notice && wake_pressed && !back_pressed && request != 2 &&
                      (page == PAGE_CLOCK || page == PAGE_CHAT);
 
-        if ((back_pressed || request == 2) && page != PAGE_CLOCK) {
+        if (update_notice) {
+            /* A held upgrade key and remote HOME must not acknowledge the notice. */
+            if (back_pressed) {
+                if (dismiss_update_notice()) {
+                    taskENTER_CRITICAL();
+                    update_notice = false;
+                    taskEXIT_CRITICAL();
+                    draw_home(true);
+                    publish_page(page, "K3");
+                } else {
+                    ui_write_string(16, 286, "Save failed. Retry K3", 0xFFFF,
+                                    mkcolor(12, 22, 32), &font16_maple);
+                }
+            }
+        } else if ((back_pressed || request == 2) && page != PAGE_CLOCK) {
             page = PAGE_CLOCK;
             draw_home(true);
             publish_page(page, back_pressed ? "K3" : "PC");

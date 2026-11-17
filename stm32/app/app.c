@@ -48,6 +48,7 @@ static TimerHandle_t wifi_update_timer;
 static TimerHandle_t time_update_timer;
 static TimerHandle_t inner_update_timer;
 static TimerHandle_t outdoor_update_timer;
+static bool network_connected;
 
 /* [阅读说明]
  * 在 workqueue 任务中经 ESP-AT 获取 SNTP 时间并写 RTC。
@@ -59,7 +60,7 @@ static void time_sync(void)
     rtc_date_time_t rtc_date = { 0 };
 
     esp_date_time_t esp_date = { 0 };
-    if (!esp_at_sntp_get_time(&esp_date))
+    if (!network_connected || !esp_at_sntp_get_time(&esp_date))
     {
         printf("[SNTP] get time failed\n");
         restart_sync_delay = SECONDS(1);
@@ -90,44 +91,19 @@ err:
     xTimerChangePeriod(time_sync_timer, pdMS_TO_TICKS(restart_sync_delay), 0);
 }
 
-/* [阅读说明]
- * 周期查询联网状态；当前只在 connected 标志变化时发布更新，同为已连接时的 SSID 变化会被忽略。
- */
+/* 联网尝试结束后再启动下一次轮询，避免慢速 AT 命令积压。 */
 static void wifi_update(void)
 {
-    static esp_wifi_info_t last_info = { 0 };
-
+    static char last_ssid[64];
     esp_wifi_info_t info = { 0 };
-    if (!esp_at_get_wifi_info(&info))
-    {
-        printf("[AT] wifi info get failed\n");
-        return;
+    bool connected = wifi_poll(&info) && info.connected;
+
+    if (connected != network_connected || (connected && strcmp(last_ssid, info.ssid) != 0)) {
+        page_flow_set_wifi(connected ? info.ssid : "Wi-Fi offline");
+        strcpy(last_ssid, connected ? info.ssid : "");
     }
-    
-    if (memcmp(&info, &last_info, sizeof(esp_wifi_info_t)) == 0)
-    {
-        return;
-    }
-    
-    if (last_info.connected == info.connected)
-    {
-        return;
-    }
-    
-    if (info.connected)
-    {
-        printf("[WIFI] connected to %s\n", info.ssid);
-        printf("[WIFI] SSID: %s, BSSID: %s, Channel: %d, RSSI: %d\n",
-                info.ssid, info.bssid, info.channel, info.rssi);
-        page_flow_set_wifi(info.ssid);
-    }
-    else
-    {
-        printf("[WIFI] disconnected from %s\n", last_info.ssid);
-        page_flow_set_wifi("wifi lost");
-    }
-    
-    memcpy(&last_info, &info, sizeof(esp_wifi_info_t));
+    network_connected = connected;
+    xTimerChangePeriod(wifi_update_timer, pdMS_TO_TICKS(WIFI_UPDATE_INTERVAL), 0);
 }
 
 /* [阅读说明]
@@ -205,7 +181,7 @@ static void outdoor_update(void)
     weather_info_t weather = { 0 };
     const char *weather_url = "https://api.seniverse.com/v3/weather/now.json?key=" WC_SENIVERSE_KEY "&location=xian&language=zh-Hans&unit=c";
     const char *weather_http_response;
-    if (!WC_SENIVERSE_KEY[0])
+    if (!network_connected || !WC_SENIVERSE_KEY[0])
         return;
     weather_http_response = esp_at_http_get(weather_url);
     if (weather_http_response == NULL)
@@ -269,18 +245,16 @@ void app_init(void)
 {
     time_update_timer = xTimerCreate("time update", pdMS_TO_TICKS(TIME_UPDATE_INTERVAL), pdTRUE, time_update, app_timer_cb);
     time_sync_timer = xTimerCreate("time sync", pdMS_TO_TICKS(200), pdFALSE, time_sync, work_timer_cb);
-    wifi_update_timer = xTimerCreate("wifi update", pdMS_TO_TICKS(WIFI_UPDATE_INTERVAL), pdTRUE, wifi_update, work_timer_cb);
+    wifi_update_timer = xTimerCreate("wifi update", pdMS_TO_TICKS(WIFI_UPDATE_INTERVAL), pdFALSE, wifi_update, work_timer_cb);
     inner_update_timer = xTimerCreate("inner upadte", pdMS_TO_TICKS(INNER_UPDATE_INTERVAL), pdTRUE, inner_update, work_timer_cb);
     outdoor_update_timer = xTimerCreate("outdoor update", pdMS_TO_TICKS(OUTDOOR_UPDATE_INTERVAL), pdTRUE, outdoor_update, work_timer_cb);
 
-    workqueue_run(app_work, time_sync);
     workqueue_run(app_work, wifi_update);
+    workqueue_run(app_work, time_sync);
     workqueue_run(app_work, inner_update);
     workqueue_run(app_work, outdoor_update);
     
     xTimerStart(time_update_timer, 0);
-    xTimerStart(time_sync_timer, 0);
-    xTimerStart(wifi_update_timer, 0);
     xTimerStart(inner_update_timer, 0);
     xTimerStart(outdoor_update_timer, 0);
 }

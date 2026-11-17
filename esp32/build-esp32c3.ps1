@@ -1,4 +1,5 @@
-param([string]$ArduinoCli = 'arduino-cli')
 $ErrorActionPreference = 'Stop'
-& $ArduinoCli compile --fqbn 'esp32:esp32:esp32c3:FlashMode=dio,FlashFreq=40,CDCOnBoot=default' --build-path (Join-Path $PSScriptRoot 'build') (Join-Path $PSScriptRoot 'VoiceFirmware')
-if ($LASTEXITCODE -ne 0) { throw 'ESP32-C3 build failed' }
+if (-not $env:IDF_PATH) { throw 'Activate the ESP-IDF 5.5 environment before building.' }
+$idf = Join-Path $env:IDF_PATH 'tools/idf.py'
+python $idf -C $PSScriptRoot build
+if ($LASTEXITCODE -ne 0) { throw 'ESP-IDF build failed' }

@@ -1,6 +1,6 @@
 /* [阅读说明]
  * C3 网络配置状态：saved 为已保存配置，pending 为待验证配置。
- * 新配置先尝试连接，VoiceFirmware.ino 确认成功后才调用 commit() 持久化，失败可回退旧配置。
+ * 新配置先尝试连接，voice_firmware.cpp 确认成功后才调用 commit() 持久化，失败可回退旧配置。
  */
 #pragma once
 #include <stdint.h>

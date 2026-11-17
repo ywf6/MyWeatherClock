@@ -8,7 +8,6 @@
 #include "workqueue.h"
 #include "app.h"
 #include "ui.h"
-#include "wifi.h"
 #include "page.h"
 #include "page_flow.h"
 #include "host_console.h"
@@ -36,17 +35,7 @@ static void main_init(void *param)
 
     welcome_page_display();
 
-    /* [阅读说明]
-     * 初始化板载 ESP-AT 和 SNTP，再等待联网。
-     * 现状提醒：wifi.c 的错误路径会空转，页面任务和业务定时器也尚未启动。
-     */
-    wifi_init();
-    wifi_page_display();
-    wifi_wait_connect();
-
-    /* [阅读说明]
-     * 创建页面任务，管理 HOME/FACE/CHAT 和 K2/K3；app_init() 随后启动数据更新。
-     */
+    /* 先启动时钟页面和业务，联网由工作队列处理。 */
     page_flow_start();
     app_init();
 

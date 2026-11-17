@@ -1,0 +1,4 @@
+websockets>=14,<16
+aiohttp>=3.10,<4
+av>=14,<17
+Pillow>=10,<13

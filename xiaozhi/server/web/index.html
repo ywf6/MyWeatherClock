@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>小智语音控制台 · MyWeatherClock</title>
+  <link rel="stylesheet" href="/dashboard.css">
+  <script src="/dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand"><span class="chip" aria-hidden="true"></span><span>MyWeatherClock</span></div>
+      <div class="top-actions">
+        <span class="status" id="gateway-status" data-tone="neutral"><span aria-hidden="true"></span><span id="gateway-label">连接中</span></span>
+        <button type="button" id="refresh" class="button">刷新状态</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <header class="page-title">
+      <h1>小智语音控制台</h1>
+      <p id="updated-at" class="timestamp">等待同步</p>
+    </header>
+
+    <div class="summary">
+      <section class="instrument" aria-labelledby="live-title" id="live-panel" data-phase="offline">
+        <div class="instrument-copy">
+          <h2 id="live-title">语音链路</h2>
+          <p class="instrument-state" id="phase-label" aria-live="polite">等待连接</p>
+          <p class="instrument-detail" id="phase-detail">正在读取小智服务状态。</p>
+        </div>
+        <div class="dial" aria-hidden="true">
+          <span class="dial-ring"></span>
+          <span class="dial-center"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+        <ol class="steps" aria-label="问答流程">
+          <li data-step="recording"><span></span>录音</li>
+          <li data-step="processing"><span></span>生成</li>
+          <li data-step="playing"><span></span>播报</li>
+          <li data-step="displaying"><span></span>上屏</li>
+        </ol>
+      </section>
+
+      <section class="panel system" aria-labelledby="system-title">
+        <h2 id="system-title">设备与服务</h2>
+        <dl>
+          <div><dt>外置 ESP32-C3</dt><dd><span class="status" id="device-status" data-tone="neutral"><span aria-hidden="true"></span><span id="device-label">—</span></span></dd></div>
+          <div><dt>C3 标识</dt><dd id="device-id" class="mono">—</dd></div>
+          <div><dt>问答后端</dt><dd id="backend">—</dd></div>
+          <div><dt>设备工具</dt><dd id="tools">—</dd></div>
+          <div><dt>本次已完成</dt><dd id="completed" class="mono">—</dd></div>
+        </dl>
+      </section>
+    </div>
+
+    <div class="answers">
+      <section class="panel answer-panel" aria-labelledby="answer-title">
+        <div class="panel-header"><h2 id="answer-title">最近回答</h2><button type="button" id="copy" class="button" disabled>复制文字</button></div>
+        <p id="answer" class="answer-text is-empty">有一轮成功的问答后，回答会显示在这里。</p>
+        <dl id="answer-meta" class="answer-meta" hidden>
+          <div><dt>录音</dt><dd id="input-time">—</dd></div>
+          <div><dt>回复耗时</dt><dd id="elapsed-time">—</dd></div>
+          <div><dt>STM32 屏幕</dt><dd id="screen-status">—</dd></div>
+        </dl>
+        <p id="copy-result" class="sr-only" role="status"></p>
+      </section>
+      <section class="panel history-panel" aria-labelledby="history-title">
+        <div class="panel-header"><h2 id="history-title">问答记录</h2><span class="muted">最近 12 条</span></div>
+        <p id="history-empty" class="muted empty-history">当前没有记录。按板上的 K2 发起问答。</p>
+        <ul id="history" class="history"></ul>
+        <p class="history-note">服务重启后清空</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

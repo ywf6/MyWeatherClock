@@ -2,14 +2,28 @@
 .env
 .env.*
 /.vscode/
+/esp32/.vscode/
 
 # Generated firmware and native builds
 /firmware/
 /stm32/ota/build/
 /stm32/page-flow-build/
 /esp32/build/
+/esp32/managed_components/
+/esp32/sdkconfig
+/esp32/sdkconfig.old
 /qt/native/build-auto/
+/qt/native/build/
+/qt/native/.qtcreator/
 /qt/voice-assets/wake-runtime/
+/stm32/mdk/.vscode/
+/stm32/mdk/DebugConfig/
+/stm32/mdk/Listings/
+/stm32/mdk/Objects/
+/tools/lcd-dma-benchmark/build/
+/tools/lcd-dma-benchmark/build-slow/
+/tools/lcd-dma-benchmark/sigrok-cli-portable/
+/tools/lcd-dma-benchmark/*installer.exe
 
 # Python caches
 __pycache__/
